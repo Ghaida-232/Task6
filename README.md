@@ -71,7 +71,8 @@ This variety in text shape, layout and image quality ensures our OCR pipeline is
   
 ## 4. OCR Engine Integration 
 
-<img width="1310" height="1310" alt="image" src="https://github.com/user-attachments/assets/9431feae-dbf5-4920-97fd-e41f7602abac" />
+<img width="1928" height="1294" alt="image" src="https://github.com/user-attachments/assets/603d6421-65c1-413f-a9ec-60e93b79b54d" />
+
 
 - **Initialize EasyOCR reader**  
   We spin up `easyocr.Reader(['en','ar'])` so our pipeline handles both English and Arabic out of the box.
@@ -94,55 +95,123 @@ This variety in text shape, layout and image quality ensures our OCR pipeline is
 - Here is an example of the output:
   <img width="1533" height="1015" alt="image" src="https://github.com/user-attachments/assets/a38c820a-d181-4673-aefd-d15269d2cc9b" />
 <br/>
-***Note that we only apply OCR on 9,587 files (images) due to the huge dataset size and the large amount of time reqiured to process the OCR.***
+***Note that we only apply OCR on 1000 files (images) due to the huge dataset size and the large amount of time reqiured to process the OCR.***
+
+## 5. Post-processing 
+
+<img width="1297" height="1324" alt="image" src="https://github.com/user-attachments/assets/37840da8-4e9d-4236-addf-52273ff5a4f6" />
+
+- **Advanced text cleanup**  
+  - Normalize Unicode (NFKC) so ligatures and diacritics become consistent  
+  - Strip out any non-Arabic/English characters with a regex filter  
+  - Collapse repeated punctuation (e.g. “…,” → “.”) and trim extra spaces  
+  - Convert any stray A–Z letters to lowercase for uniformity
+
+- **Spell-checking**  
+  We run each cleaned line through a SpellChecker:  
+  - Only alphabetic tokens get checked  
+  - Corrections are applied when a valid suggestion exists  
+  - Numbers and mixed tokens pass through unchanged
+
+- **Finalize & export**  
+  The pipeline writes out `final_extracted_text.csv` with columns `[image_name, final_text, avg_confidence, line_count]`.  
 
 
 ## 6. Evaluation  
-- Compare extracted text to ground‑truth annotations (if available). :contentReference[oaicite:46]{index=46}  
-- Calculate evaluation metrics: Character Error Rate (CER) and Word Error Rate (WER). :contentReference[oaicite:47]{index=47}  
-- Display examples of correct and incorrect outputs. :contentReference[oaicite:48]{index=48}  
+<img width="1464" height="583" alt="image" src="https://github.com/user-attachments/assets/51178da4-06e5-4094-94b0-4d7300400e01" />
+<img width="1189" height="390" alt="image" src="https://github.com/user-attachments/assets/e19d2f27-80e0-4c42-ab27-428464057f2b" />
+
+- **Overall accuracy**  
+  - **Mean CER:** ~30.8%  
+  - **Mean WER:** ~5.7%
+
+- **Top performers** (lowest WER = 0)  
+  - Pages with crisp, short headers/logos had perfect reconstruction.
+
+- **Challenging pages** (highest WER > 200)  
+  - Extremely dense text or complex layouts led to WER > 200 on a few pages.
+
+- **Error distributions**  
+  - Most pages cluster at **WER < 20** and **CER < 100**.  
+  - A long tail of higher-error pages corresponds to very long paragraphs or unusual formatting.
+
+- **Visual diagnostics**  
+  - Histograms show a tight peak at low error rates, confirming reliable extraction on the bulk of pages.  
+  - Outliers highlight pages for targeted post-processing or manual review.  
+ 
 
 ## 7. Visualization & Examples  
-- Show side‑by‑side comparisons of original image, processed image, and extracted text. :contentReference[oaicite:49]{index=49}  
-- Highlight detected text regions with bounding boxes. :contentReference[oaicite:50]{index=50}  
-- Display sample errors with explanations. :contentReference[oaicite:51]{index=51}  
+<img width="1876" height="1302" alt="image" src="https://github.com/user-attachments/assets/5a68c121-ceee-4f67-8643-d990b377d94e" />
+<img width="1875" height="1285" alt="image" src="https://github.com/user-attachments/assets/dde85033-03f8-4e6a-8a87-b19643d82621" />
+
+
+- **Side-by-side comparison**  
+  We overlay detected text boxes (red) on the original image, show the binarized/thresholded result and render the final OCR string—so you can see exactly which regions were read.
+
+- **High-contrast processing**  
+  The middle column’s black-white mask highlights how adaptive thresholding isolates text areas, even against busy backgrounds.
+
+- **Accurate text capture**  
+  - “ROAD WORK AHEAD” signs yield clean, lowercase “road work ahead.”  
+  - Album covers like “Quadromania” get mostly correct OCR (“gene ammo’s you can depend on me”).  
+  - Street signs (“WESTON RD. 1149”) are picked out perfectly.
+
+- **Edge cases**  
+  When no text is found, we display `nan`—making it easy to spot images that need manual review.
+
+These examples demonstrate our pipeline’s ability to localize, enhance and extract text from diverse real-world scenes.  
 
 ## 8. References  
 - Dataset used [1]:https://www.kaggle.com/datasets/robikscube/textocr-text-extraction-from-images-dataset?select=train_val_images  
-- Hugging Face TrOCR. :contentReference[oaicite:53]{index=53}  
-- EasyOCR. :contentReference[oaicite:54]{index=54}  
-- PaddleOCR. :contentReference[oaicite:55]{index=55}
+- OCR model used: https://github.com/JaidedAI/EasyOCR
 
 
-## Project Structure
+## 9. Project Structure
 
 ```
-task6/
-├── RegulationsAPIs.pdf # 39-page Arabic PDF law document
-├── RegulationsAPIs_text.csv # text extracted by PDF API
-├── ocr_output_raw.csv # raw OCR results (per page)
-├── ocr_all_pages.csv # cleaned OCR results (per page)
-├── extracted_text.csv # combined text snippets
-├── final_output.csv # post-processed, ready for analysis
-├── final_output.json # final_output in JSON format
-├── Text_Extraction_from_Images.ipynb # notebook: PDF→text API extraction
-└── Text_Extraction_OCR.ipynb # notebook: OCR & cleanup pipeline
+TASK6/
+├── data/
+│ ├── train_val_images/ # raw images for OCR
+│ ├── train_val_images_cleaned/ # preprocessed binaries & deskewed images
+│ ├── annot.csv # ground-truth annotations (CSV)
+│ ├── annot.parquet # ground-truth annotations (Parquet)
+│ ├── img.csv # image metadata (CSV)
+│ ├── img.parquet # image metadata (Parquet)
+│ ├── ocr_tesseract.json # raw Tesseract JSON outputs
+│ ├── text_regions.json # detected text-region coordinates
+│ └── TextOCR_0.1_train.json # original dataset split file
+├── csv_output/
+│ ├── extracted_text.csv 
+│ ├── final_extracted_text.csv 
+│ └── evaluation_summary.csv 
+├── Text_Extraction_from_Images.ipynb 
+
 ```
 
 
-## How to Run
+## 10. How to Run
 
-1. **Open & run “Text_Extraction_from_Images.ipynb”**  
-   - Converts `RegulationsAPIs.pdf` → `RegulationsAPIs_text.csv` via the PDF text API.  
-   - Generates `extracted_text.csv`.
+1. **Install requirements**  
+   Make sure you have Python 3.7+ and Tesseract OCR installed. Then install the required packages:
+   ```bash
+   pip install jupyter pandas pdf2image pytesseract easyocr fitz-python matplotlib seaborn
+2. **Prepare your data folder**
+Place all your inputs under TASK6/data/:
 
-2. **Open & run “Text_Extraction_OCR.ipynb”**  
-   - Loads `RegulationsAPIs.pdf` pages as images.  
-   - Runs Tesseract OCR → outputs `ocr_output_raw.csv`.  
-   - Cleans & normalizes → writes `ocr_all_pages.csv`.  
-   - Merges everything into `final_output.csv` and `final_output.json`.
+TASK6/data/
+  ├── train_val_images/               # raw images for OCR
+  ├── train_val_images_cleaned/       # (optional) preprocessed images
+  ├── annot.csv, annot.parquet        # ground-truth CSV/Parquet
+  ├── img.csv, img.parquet            # image metadata
+  ├── ocr_tesseract.json              # raw Tesseract outputs
+  ├── text_regions.json               # detected text boxes
+  └── TextOCR_0.1_train.json          # dataset split info
 
-3. **Inspect outputs**  
-   - `extracted_text.csv` for API-extracted text.  
-   - `ocr_output_raw.csv` / `ocr_all_pages.csv` for OCR results.  
-   - `final_output.*` for your downstream tasks (NER, search, etc.).
+3. **mkdir -p TASK6/csv_output**
+
+4. **cd TASK6**
+jupyter notebook Text_Extraction_from_Images.ipynb
+or open it in VS Code / Colab.
+
+Run all cells
+
